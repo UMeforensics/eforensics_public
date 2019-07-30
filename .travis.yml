@@ -1,0 +1,27 @@
+language: R
+
+before_install:
+  - sudo apt-get update
+  - sudo apt-get install jags
+
+sudo: false
+
+cache:
+  packages: true
+
+script: 
+  - R CMD build .
+  - R CMD check *tar.gz
+  - R CMD INSTALL eforensics_0.0.0.9000.tar.gz
+  - travis_wait 90 make error_test
+  - travis_wait 90 make vignette
+  - travis_wait 90 make help_files
+  - travis_wait 90 make king_county_pre
+  - travis_wait 90 make michigan_county
+  - travis_wait 90 make extreme_simulation
+
+r_packages:
+  - rmarkdown
+
+os:
+  - linux

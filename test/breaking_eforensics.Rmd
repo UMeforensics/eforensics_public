@@ -1,0 +1,193 @@
+---
+title: "eforensics Testing"
+author: "Patrick Y. Wu"
+date: "November 7, 2018"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+I first load in the package. Note that if I don't have the package already installed I can't install it right now using the GitHub's readme, because the project is currently private.
+
+```{r setup}
+library(eforensics);
+```
+
+I then run the help file just to see what happens. 
+
+```{r run_helpfile, error=TRUE}
+## model
+## -----
+model    = 'bl'
+
+## simulating data and parameters
+## ------------------------------
+help(ef_simulateData)
+sim_data = ef_simulateData(n=7000, nCov=1, model=model)
+data     = sim_data$data
+
+## mcmc parameters
+## ---------------
+mcmc    = list(burnin=1, n.adapt=100, n.iter=100, n.chains=2)
+
+## samples
+## -------
+help(eforensics)
+samples    = eforensics(w ~.-a, a ~ .-w,  data=data, model=model, mcmc=mcmc)
+
+summary(samples)
+summary(samples, join.chains=T)
+```
+
+Notice that this throws an error: ``Error in check_mcmc(mcmc)'' This is from the fact that ``burnin'' should probably be ``burn.in''. Now, if I correct this, this is what happens. 
+
+```{r run_helpfile_correct, error=TRUE}
+## model
+## -----
+model    = 'bl'
+
+## simulating data and parameters
+## ------------------------------
+help(ef_simulateData)
+sim_data = ef_simulateData(n=7000, nCov=1, model=model)
+data     = sim_data$data
+
+## mcmc parameters
+## ---------------
+mcmc = list(burn.in=1, n.adapt=100, n.iter=100, n.chains=2)
+
+## samples
+## -------
+help(eforensics)
+samples    = eforensics(w ~.-a, a ~ .-w,  data=data, model=model, mcmc=mcmc)
+
+summary(samples)
+summary(samples, join.chains=T)
+```
+
+Time to compile: about 7 minutes on MacBook Air. The options are a bit confusing. Don't know why it's labeled ``formula1'' and ``formula2'' for winning party/candidate votes and abstentation, respectively. Also, why use .-a? Are you supposed to include $N$? If so, you should use $N$ and $x1$ to make it clear. 
+
+Then, I look at the help files. 
+
+```{r help}
+help(ef_simulateData);
+help(eforensics); 
+```
+
+So does burn-in count for the n.iter or does it subtract from n.iter? Not clear from the help files. Also, it says weights is ``not used,'' so why is this an option? 
+
+I then generate my own data to test this. 
+
+```{r simulate_my_own_data}
+model = 'bl'
+
+sim_data = ef_simulateData(n=7000, nCov=5, model=model)
+data = sim_data$data
+mcmc = list(burn.in=100, n.adapt=100, n.iter=1000, n.chains=2)
+samples = eforensics(w ~.-a, a ~ .-w,  data=data, model=model, mcmc=mcmc)
+```
+
+This took about 30 minutes to run on the MacBook Air. Now let's try with missing covariates. 
+
+```{r simulate_own_data_missing_covariates, error=TRUE}
+model = 'bl'
+sim_data = ef_simulateData(n=7000, nCov=1, model=model);
+data = sim_data$data;
+missing_rows <- sample(c(1:7000), size = 50, replace = FALSE, prob = NULL); 
+data$x1[missing_rows] <- NA;
+mcmc = list(burn.in=1, n.adapt=100, n.iter=100, n.chains=2);
+samples = eforensics(w ~.-a, a ~ .-w,  data=data, model=model, mcmc=mcmc);
+```
+
+Solution: don't allow missing data, do something to fix it. 
+
+Now, let's try with missing observations. Let's first try missing observations for winning observations. 
+
+```{r simulate_own_data_missing_winning_observations, error=TRUE}
+model = 'bl' 
+sim_data = ef_simulateData(n=7000, nCov=1, model=model); 
+data = sim_data$data; 
+missing_obvs <- sample(c(1:7000), size = 50, replace = FALSE, prob = NULL); 
+data$w[missing_obvs] <- NA; 
+mcmc = list(burn.in=1, n.adapt=100, n.iter=100, n.chains=2);
+samples = eforensics(w ~.-a, a ~ .-w,  data=data, model=model, mcmc=mcmc);
+```
+
+Now let's try missing abstention observations.
+
+```{r simulate_own_data_missing_abstention_observations, error=TRUE}
+model = 'bl' 
+sim_data = ef_simulateData(n=7000, nCov=1, model=model); 
+data = sim_data$data; 
+missing_obvs <- sample(c(1:7000), size = 50, replace = FALSE, prob = NULL); 
+data$a[missing_obvs] <- NA; 
+mcmc = list(burn.in=1, n.adapt=100, n.iter=100, n.chains=2);
+samples = eforensics(w ~.-a, a ~ .-w,  data=data, model=model, mcmc=mcmc);
+```
+
+And finally, let's try missing total observations. 
+
+```{r simulate_own_data_missing_total_observations, error=TRUE}
+model = 'bl' 
+sim_data = ef_simulateData(n=7000, nCov=1, model=model); 
+data = sim_data$data; 
+missing_obvs <- sample(c(1:7000), size = 50, replace = FALSE, prob = NULL); 
+data$N[missing_obvs] <- NA; 
+mcmc = list(burn.in=1, n.adapt=100, n.iter=100, n.chains=2);
+samples = eforensics(w ~.-a, a ~ .-w,  data=data, model=model, mcmc=mcmc);
+```
+
+As we can see, the package at the moment cannot handle any missing values. It throws errors whenever there is any missing values, in any of the variable categories (winning count, abstentation count, N count). 
+
+Now, let's try it with toy data. 
+
+```{r real_data}
+michigan_county <- read.csv("countypres_2000-2016.csv");  
+michigan_county <- michigan_county[which(michigan_county$year==2016 & michigan_county$state_po=="MI"),]
+drop_vars <- names(michigan_county) %in% c("office", "FIPS", "year", "state", "state_po", "version"); 
+michigan_county <- michigan_county[!drop_vars]; 
+michigan_county_reshaped <- reshape(michigan_county, varying = NULL, idvar = "county", timevar = "candidate", direction = "wide"); 
+michigan_county_data_reshaped_vars <- names(michigan_county_reshaped) %in% c("county", "candidatevotes.Donald Trump", "totalvotes.Other"); 
+michigan_county_final <- michigan_county_reshaped[michigan_county_data_reshaped_vars];
+names(michigan_county_final) <- c("county", "trump", "total"); 
+county_registered_voters <- read.table("VoterCount.txt", header = FALSE, dec = "."); 
+michigan_county_final$county <- gsub('\\s+', '', michigan_county_final$county)
+names(county_registered_voters) <- c("county", "total_registered");
+michigan_county_all <- merge(michigan_county_final, county_registered_voters, by = "county"); michigan_county_all$a <- michigan_county_all$total_registered - michigan_county_all$total;
+
+names(michigan_county_all) <- c("county", "w", "total_votes", "N", "a"); 
+
+mcmc = list(burn.in=10, n.adapt=100, n.iter=1000, n.chains=2);
+samples = eforensics(w ~ N, a ~ N, data=michigan_county_all, model='bl', mcmc=mcmc);
+
+```
+
+Why do I have to rename my variable to \texttt{N}? Seems like that is really counterintuitive, especially because there is nothing listed in the file that requires total number of eligible voters to be named \texttt{N}. 
+
+Now let's try this with King County, Washington data. 
+
+```{r king_county_data_example}
+#setwd("~/Dropbox/Graduate School Files/2018-2019 School Year/election_forensics/eforensics");
+kingcounty_raw <- read.csv("kingcounty_data.csv"); 
+kingcounty_pres <- kingcounty_raw[which(kingcounty_raw$Race=="US President & Vice President"),]; 
+vars_to_drop <- names(kingcounty_pres) %in% c("LEG", "CC", "CG", "Race", "CounterGroup", "Party"); 
+kingcounty_pres <- kingcounty_pres[!vars_to_drop]; 
+kingcounty_pres_reshaped <- reshape(kingcounty_pres, varying = NULL, idvar = "Precinct", timevar = "CounterType", direction = "wide"); 
+reshaped_vars <- names(kingcounty_pres_reshaped) %in% c("Precinct", "SumOfCount.Registered Voters", "SumOfCount.Donald J. Trump & Michael R. Pence"); 
+kingcounty_pres_final <- kingcounty_pres_reshaped[reshaped_vars];
+names(kingcounty_pres_final) <- c("precinct", "N", "trump"); 
+kingcounty_pres_final$a <- kingcounty_pres_final$N - kingcounty_pres_reshaped$`SumOfCount.Darrell L. Castle & Scott N. Bradley` - kingcounty_pres_reshaped$`SumOfCount.Hillary Clinton & Tim Kaine` - kingcounty_pres_reshaped$`SumOfCount.Jill Stein & Ajamu Baraka` - kingcounty_pres_reshaped$`SumOfCount.Gary Johnson & Bill Weld` - kingcounty_pres_reshaped$`SumOfCount.Gloria Estela La Riva & Eugene Puryear` - kingcounty_pres_reshaped$`SumOfCount.Alyson Kennedy & Osborne Hart` - kingcounty_pres_reshaped$`SumOfCount.Times Blank Voted` - kingcounty_pres_reshaped$`SumOfCount.Donald J. Trump & Michael R. Pence` - kingcounty_pres_reshaped$`SumOfCount.Write-In`; 
+
+mcmc = list(burn.in=10, n.adapt=100, n.iter=1000, n.chains=2);
+samples = eforensics(trump ~ N, a ~ N, data=kingcounty_pres_final, model='bl', mcmc=mcmc);
+```
+
+This does not run. It says there are invalid parent values. Maybe it's because there are 0 values for $N$. 
+
+```{r dropping_0_values}
+updated_kingcounty_pres_final <- kingcounty_pres_final[which(kingcounty_pres_final$N != 0),]; 
+mcmc = list(burn.in=10, n.adapt=100, n.iter=1000, n.chains=2);
+samples = eforensics(trump ~ N, a ~ N, data=updated_kingcounty_pres_final, model='bl', mcmc=mcmc);
+```
+
+Now it runs fine.

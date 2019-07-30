@@ -1,0 +1,29 @@
+Package: eforensics
+Title: What the Package Does (one line, title case)
+Version: 0.0.0.9000
+Authors@R: person("Diogo", "Ferrari", email="diogoferrari@gmail.com", role=c("aut", "cre"))
+Description: What the package does (one paragraph).
+Depends: R (>= 3.4.2)
+License: MIT + file LICENSE
+Encoding: UTF-8
+LazyData: true
+Imports: magrittr,
+    coda,
+    dclone,
+    dplyr,
+    rjags,
+    LCA,
+    MASS,
+    parallel,
+    runjags,
+    LaplacesDemon,
+    foreach,
+    tibble,
+    data.table,
+    msm,
+    purrr,
+    stringr,
+    doParallel,
+    ggplot2,
+    tidyr
+RoxygenNote: 6.1.1

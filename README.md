@@ -1,7 +1,7 @@
 Overview
 ========
 
-Instalation
+Installation
 ===========
 
 **NOTE:** [JAGS](https://sourceforge.net/projects/mcmc-jags/) is

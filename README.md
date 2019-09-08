@@ -9,9 +9,9 @@ required to use the current version of this package
 
 ``` {.r .rundoc-block rundoc-language="R" rundoc-exports="code"}
 # Install the development version (requires the package "devtools", so install it first if it is not installed already)
-devtools::install_github("DiogoFerrari/eforensics")
+devtools::install_github("UMeforensics/eforensics_public")
 # If you don't want to update the dependencies, use: (you may need to install some dependencies manually)
-devtools::install_github("DiogoFerrari/eforensics", dependencies=F)
+devtools::install_github("UMeforensics/eforensics_public", dependencies=F)
 ```
 
 Usage
@@ -21,9 +21,11 @@ In R, check `help(eforensics)`
 
 ``` {.r .rundoc-block rundoc-language="R" rundoc-exports="code"}
 library(eforensics)
+#Add pipe capability
+library(magrittr)
 
 
-ef_models()
+## ef_models()
 model  = 'bl'
 
 ## simulating data and parameters

@@ -1,0 +1,41 @@
+language: R
+
+before_install:
+  - Rscript -e 'install.packages("devtools", repos = "http://cran.rstudio.com")'
+  # Commands to be run on LINUX ONLY
+  - if [ "$TRAVIS_OS_NAME" = "linux" ]; then sudo apt-get update        ; fi
+  - if [ "$TRAVIS_OS_NAME" = "linux" ]; then sudo apt-get install jags  ; fi
+  # Commands ot be run on OSX ONLY
+  - if [ "$TRAVIS_OS_NAME" = "osx" ]; then brew update                  ; fi
+  - if [ "$TRAVIS_OS_NAME" = "osx" ]; then rm '/usr/local/bin/gfortran' ; fi
+  - if [ "$TRAVIS_OS_NAME" = "osx" ]; then brew install jags            ; fi
+
+branches:
+  only:
+    - develop
+
+sudo: true
+
+cache:
+  packages: true
+
+script:
+  - travis_wait 60 R CMD build .
+  - travis_wait 60 R CMD check *tar.gz
+  # TODO: Change if tarball versioning changes
+  - travis_wait 60 R CMD INSTALL eforensics_0.0.0.9000.tar.gz
+  # TODO: Run Tests:
+  - travis_wait 90 make error_test
+  - travis_wait 90 make vignette
+  - travis_wait 90 make help_files
+  - travis_wait 300 make toy_models
+  - travis_wait 90 make king_county_pre
+  - travis_wait 90 make michigan_county
+
+os:
+  # Running on two OS currently
+  - linux
+  - osx
+  # This might error out, windows not support on stable release
+  # Alternative is to run this test case on the beta/alpha version of travis-ci (which is hard to do currently)
+  # - windows

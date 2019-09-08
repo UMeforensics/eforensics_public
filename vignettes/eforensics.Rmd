@@ -1,0 +1,210 @@
+---
+title: "Introduction to eforensics"
+author: "Diogo Ferrari, Kevin McAlister, Walter R. Mebane, Jr., Patrick Y. Wu"
+date: "August 16, 2019"
+output: html_document
+vignette: >
+  %\VignetteIndexEntry{eforensics}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>"
+)
+```
+
+```{r setup, include=FALSE}
+library(eforensics)
+library(ggplot2)
+library(ggExtra)
+library(dplyr)
+library(coda)
+```
+
+The eforensics package implements the methodology described in a forthcoming paper in a convenient R package. 
+
+The primary function in the package is the <tt>eforensics</tt> function. This vignette briefly describes usages of this function through a series of examples. 
+
+## Handling the Data
+
+Data must be preprocessed properly in order to use it with the eforensics function. 
+
+* There can be no observations with missing data.
+
+* You must have a count of the votes for the party or candidate that won the election. 
+
+* You must have a count of abstention. 
+
+* You can have covariates that relate to the probability of incremental fraud by manufacturing votes, the probability of incremental fraud by stealing votes, the probability of extreme fraud by manufacturing votes, and the probability of extreme fraud by stealing votes. You can also have covariates that relate to the conditional means of abstentation and/or vote choice. 
+
+* You cannot have any counts that are less than 0. You cannot have a precinct with 0 votes for the total number of eligible voters.
+
+## Washington, D.C. 2010 Mayoral Election Data Example
+
+We use precinct-level data from Washington, D.C.'s 2010 mayoral election. Vincent C. Gray won the election. Thus, he will be considered the "winner" of the election. 
+
+### Exploring the data
+
+```{r preprocess}
+library(eforensics)
+data(dc2010)
+head(dc2010)
+```
+
+The variable <tt>precinct</tt> denotes the name of the precinct in Washington, D.C. in 2010. <tt>NVoters</tt> is the number of eligible (registered) voters in Washington, D.C. in each precinct. <tt>NValid</tt> is the number of (valid) votes that were casted in the mayoral race. <tt>Votes</tt> is the number of votes for the winning candidate, Vincent C. Gray. <tt>a</tt> is the number of registered voters who did not vote (abstained); it is calculated using <tt>NVoters-NValid</tt>. 
+
+Before using the <tt>eforensics</tt> function, we want to graph out the relationship between the number of votes cast for the winner (Gray) and the number of voters that abstained. Notice that we display this relationship in two ways: as a proportion over the total number of eligible voters, and as raw counts. Notice that the relationship mapped out may differ when we use proportion versus count data; here, there is not a great difference between the two plots. 
+
+```{r graph1}
+ef_byplot(dc2010, x="a", y="Votes", xlab="Abstention", ylab="Votes for Vincent C. Gray")
+
+```
+
+```{r graph2}
+ef_byplot(dc2010, x="a/NVoters", y="Votes/NVoters", xlab="Abstention Prop. Among Eligible Voters", ylab="Prop. of Gray Votes Among Eligible Voters")
+```
+
+### Using the <tt>eforensics</tt> function
+
+Because we do not have any covariates, we do not need to worry about covariates affecting the probability of incremental frauds or extreme frauds. We create an object called <tt>mcmc</tt> which stores all the parameters we need for the mcmc run (burn-in, iterations, chains, etc.). We use the quasi-binomial logit model.  
+
+```{r eforensics_demonstration}
+set.seed(48109)
+mcmc         <- list(burn.in=5000, n.adapt=1000, n.iter=1000, n.chains=1)
+samples_dc   <- eforensics(Votes ~ 1, 
+                           a ~ 1, 
+                           data=dc2010, 
+                           model='qbl', 
+                           mcmc=mcmc, 
+			                     max.auto = 10,
+                           eligible.voters="NVoters")
+results_dc <- summary(samples_dc)
+print(results_dc)
+```
+The first formula is <tt>Votes ~ 1</tt>. The dependent variable for this first formula is always the number of votes for the party or candidate that won the election. Because there are no covariates related to this count, we simply relate this number to an intercept. The second formula is <tt>a ~ 1</tt>. The dependent variable for this second formula is always the number of voters who abstained. Again, because we have no covariates related to this number, we simply relate this number to an intercept. The rest of the arguments are straightforward: <tt>mcmc</tt> takes the parameters of the MCMC, <tt>model</tt> specifies the type of model to use, and <tt>eligible.voters</tt> denotes the variable that represents the total number of eligible voters.
+
+From the results, we see that the unconditional probability that the vote count in a D.C. precinct has no fraud has a 95\% credible interval of (`r round(results_dc$'Chain 1'[1,5], digits=3)`, `r round(results_dc$'Chain 1'[1,6], digits=3)`) with a posterior mean of `r round(results_dc$'Chain 1'[1,3], digits=3)`. The unconditional probability that the vote count in a D.C. precinct has incremental fraud has a 95\% credible interval of (`r round(results_dc$'Chain 1'[2,5], digits=3)`, `r round(results_dc$'Chain 1'[2,6], digits=3)`) with a posterior mean of `r round(results_dc$'Chain 1'[2,3], digits=3)`. The unconditional probability that the vote count in a D.C. precinct has extreme fraud has a 95\% credible interval of (`r round(results_dc$'Chain 1'[3,5], digits=3)`, `r round(results_dc$'Chain 1'[3,6], digits=3)`) with a posterior mean of `r round(results_dc$'Chain 1'[3,3], digits=3)`.
+
+We can also use the <tt>ef_byplot</tt> function to plot the data points again but this time with the data points classified after estimation. 
+
+```{r plotting_classified}
+ef_byplot(dc2010, samples=samples_dc, x="a", y="Votes", xlab="Abstention", ylab="Votes for Vincent C. Gray", contour.fill.color=T)
+```
+
+## Example with Covariates
+
+We use simulated data to show how to use the <tt>eforensics</tt> function with covariates; we also use this section to demonstrate the <tt>ef_simulateData</tt> function. 
+
+### Simulating data
+
+We will simulate data with one covariate affecting both turnout and votes for the winner in each election unit and one covariate affecting the occurrence of both incremental fraud and extreme fraud in both turnout and votes for the winner. We will simulate data using the binomial-logit model. We will have 1000 election units in this simulated dataset. For simulation purposes, we set the probability of no fraud to 0.9, probability of incremental fraud to 0.08, and probability of extreme fraud to 0.02. 
+
+```{r simulatedata}
+set.seed(13073783)
+sim_data <- ef_simulateData(n=500, nCov=1, nCov.fraud=1, model='bl', pi=c(0.9,0.08,0.02))
+data     <- sim_data$data
+```
+
+
+### Analyzing the simulated data 
+
+Now that we have the simulated data, we can use the <tt>eforensics</tt> function as before. Again, we set up our MCMC parameters, and then use the <tt>eforensics</tt> function. We will use two chains, so we set <tt>n.chains</tt> to 2 in the list of MCMC parameters. We will monitor all parameters, so we set <tt>parameters</tt> to "all". 
+
+```{r analyzing_simulateddata, warning=FALSE}
+mcmc     <- list(burn.in=5000, n.adapt=1000, n.iter=1000, n.chains=2)
+samples  <- eforensics(
+  w ~ x1.w,
+  a ~ x1.a,
+  mu.iota.s ~ x1.iota.s,
+  mu.chi.m  ~ x1.chi.m,
+  mu.chi.s  ~ x1.chi.s,
+  mu.iota.m ~ x1.iota.m,
+  data=data,
+  eligible.voters='N',
+  max.auto = 10,## this sets the maximum number of trials to reach convergence in the MCMC. We recomend max.auto=10
+  model='qbl', mcmc=mcmc,
+  parameters = 'all')
+summary(samples)
+```
+
+The summary table shows the results as separate chains. We can also join the chains and show the results. 
+
+```{r joining_chains, warning=FALSE}
+summary(samples, join.chains=T)
+```
+
+### Comparing the results with the actual data
+We can compare the estimated parameters to the actual values used to generate the simulated data.
+
+```{r comparison, warning = FALSE}
+True    <- ef_get_true(sim_data)
+dplyr::left_join(summary(samples, join.chains=T), True, by="Parameter") 
+```
+
+### Plotting the results
+
+Lastly, we can plot the results of the <tt>eforensics</tt> function. We can also include the true values as obtained above. 
+
+```{r plots}
+ef_plot(samples)
+ef_plot(samples, True)
+ef_plot(samples, True, parse=T)
+ef_plot(samples, plots = c("Abstention and Vote",  "Fraud Probability" ))
+ef_plot(samples, plots = c("Fraud Probability"))
+```
+
+# Aggregated Covariates
+A common problem in data sets that may be used with this package is that one may have covariates that relate to abstention and turnout rates but only on an aggregated level (such as at the county level when the original data is at the precinct level). In this section, we show the consequences of using covariates that are aggregated. Here, we use 6 covariates: one covariate related to the votes for the winner, one covariate related to the abstention count, one covariate related to vote switching in incremental fraud, one covariate related to manufactured votes in incremental fraud, one covariate related to vote switching in extreme fraud, and one covariate related to manufactured votes in extreme fraud. 
+
+We use the simulated data from above, and randomly assign the precincts into counties. The size of each county will follow a Poisson distribution with $\lambda = 20$, with 25 counties. 
+```{r assign_counties}
+set.seed(29817380)
+counties_sizes               <- rpois(25,20)
+counties_prop                <- counties_sizes / sum(counties_sizes)
+county_assignment            <- sample(x=c(1:25),size=500,replace=TRUE,prob=counties_prop)
+data_counties                <- data; 
+data_counties$county         <- county_assignment;
+aggregated_covariates        <- aggregate(cbind(data_counties$x1.w, 
+                                         data_counties$x1.a, 
+                                         data_counties$x1.iota.m, 
+                                         data_counties$x1.iota.s, 
+                                         data_counties$x1.chi.m, 
+                                         data_counties$x1.chi.s), 
+                                    by=list(county=data_counties$county), 
+                                    FUN=sum)
+names(aggregated_covariates) <- c('county', 
+                                  'x1.w_county', 
+                                  'x1.a_county', 
+                                  'x1.iota.m_county', 
+                                  'x1.iota.s_county', 
+                                  'x1.chi.m_county', 
+                                  'x1.chi.s_county')
+data_counties                <- merge(data_counties, aggregated_covariates, by='county')
+```
+
+Now that we have the aggregated covariates (by sum), we can rerun the previous analysis and see what it produces. 
+
+```{r analysis_by_county, warning=FALSE}
+mcmc             <- list(burn.in=5000, n.adapt=1000, n.iter=1000, n.chains=1)
+samples_counties <- eforensics(w ~ x1.w_county,
+                               a ~ x1.a_county,
+                               mu.iota.s ~ x1.iota.s_county,
+                               mu.chi.m  ~ x1.chi.m_county,
+                               mu.chi.s  ~ x1.chi.s_county,
+                               mu.iota.m ~ x1.iota.m_county,
+                               data=data_counties,
+                               eligible.voters='N',
+                               model='qbl', 
+                               mcmc=mcmc,
+			                         autoConv = TRUE,
+			                         max.auto = 10,
+                               parameters = 'all')
+
+True             <- ef_get_true(sim_data)
+dplyr::left_join(summary(samples_counties, join.chains=T), True, by="Parameter") 
+```
+
+In this case, although the fraud probability estimates are close to the truth, many of the intercepts and coefficients on the covariates do not match up with their true value. 

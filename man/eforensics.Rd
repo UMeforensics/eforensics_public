@@ -5,10 +5,12 @@
 \title{Election Forensics Finite Mixture Model}
 \usage{
 eforensics(formula1, formula2, formula3 = NULL, formula4 = NULL,
-  formula5 = NULL, formula6 = NULL, data, elegible.voters = NULL,
-  weights = NULL, mcmc, model, parameters = "all",
-  na.action = "exclude", get.dic = 1000, parComp = T, autoConv = T,
-  max.auto = 10)
+  formula5 = NULL, formula6 = NULL, data, eligible.voters = NULL,
+  weights = NULL, mcmc, model = "qbl", parameters = "all",
+  na.action = "exclude", get.dic = 1000, parComp = TRUE,
+  autoConv = TRUE, max.auto = 10, mcmc.conv.diagnostic = "MCMCSE",
+  mcmc.conv.parameters = "pi", mcmcse.conv.precision = 0.05,
+  mcmcse.combine = FALSE)
 }
 \arguments{
 \item{formula1}{an object of the class \code{formula} as used in \code{\link{lm}}. The dependent variable of this formula must the number (counts) or proportion of votes for the party or candidate that won the election. If counts are used, the model must be from the binomial family (see \code{model} parameter below). If proportions are provided, the model must be from the normal family (see \code{model} parameter below)}
@@ -30,63 +32,141 @@ eforensics(formula1, formula2, formula3 = NULL, formula4 = NULL,
   \item{formula6}{an object of the class \code{formula} as used in \code{\link{lm}}. The left-hand side (LHS) of the formula must be mu.chi.s (see example). The mu.chi.s is the probability of extreme fraud by stealing votes from the opposition and it is a latent variable in the model. By specifying the LHS with that variable, the functional automatically identifies that formula as formula6. Default is \code{NULL} and it means that probability is not affected by election unit (ballot box, polling place, etc) covariate}
 }}
 
-\item{data}{a dara.frame with the independent variables (voters for the winner and abstention) and the covariates. If the independent variables are counts, the it is necessary to provide the total number of elegible voters (see parameter \code{elegible.voters})}
+\item{data}{a data.frame with the independent variables (voters for the winner and abstention) and the covariates. If the independent variables are counts, the it is necessary to provide the total number of eligible voters (see parameter \code{eligible.voters})}
 
-\item{elegible.voters}{string with the name of the variable in the data that contains the number of elegible voters. Default is \code{NULL}, but it is required if the independent variables (voters for the winner and abstention) are counts}
+\item{eligible.voters}{string with the name of the variable in the data that contains the number of eligible voters. Default is \code{NULL}, but it is required if the independent variables (voters for the winner and abstention) are counts}
 
-\item{weights}{(not used)}
+\item{weights}{Deprecated.}
 
-\item{mcmc}{a list containing \code{n.iter}, which is the number of iterations for the MCMC, \code{burn.in} for the burn-in period of the MCMC chain, \code{n.adapt} indicating the number of adaptative steps before the estimation (see \code{\link{rjags}})}
+\item{mcmc}{a list containing \code{n.iter}, which is the number of iterations for the MCMC, \code{burn.in} for the burn-in period of the MCMC chain, \code{n.adapt} indicating the number of adaptative steps before the estimation (see \code{rjags}), and \code{n.chains}, an integer indicating the number of chains to use (default 1).}
 
-\item{model}{a string with the model ID to use in the estimation. Run \code{\link{ef_models()}} to see the list and descriptions of the models available.}
+\item{model}{a string with the model ID to use in the estimation. There are three current choices: \code{qbl}, \code{bl}, and \code{rn}.  \code{qbl} is the default and recommended choice.  For a description of each model, see \code{ef_models_desc}.}
 
 \item{parameters}{a string vector with the names of the parameters to monitor. When \code{NULL}, it will monitor all the parameters, except the Z's. When \code{parameters='all'} (default), it will monitor all parameters, including Z, which is necessary to classify the observations as fraudulent cases or not.}
 
-\item{na.action}{(not used)}
+\item{na.action}{Deprecated.}
 
-\item{get.dic}{logical.  If get.dic is FALSE, no DIC is calculated.  If get.dic is an integer greater than 0, run model get.dic iterations to get the DIC.  If \code{parComp = TRUE}, then no DIC is calculated.}
+\item{get.dic}{Deprecated.}
 
-\item{parComp}{Logical.  If parComp = TRUE, then chains are computed in parallel using the runjags architecture.  This opens n.chains instances of JAGS.  In practice, a max of 4 unique chains can be run due to the way in which JAGS generates initial values.}
+\item{parComp}{Logical.  If \code{parComp = TRUE}, then chains are computed in parallel using the runjags parallel method.  This opens \code{n.chains} instances of JAGS.  In practice, a max of 4 unique chains can be run due to the way in which JAGS generates initial values.  If \code{parComp = FALSE}, chains are run sequentially using the runjags interruptible method.}
 
-\item{autoConv}{Logical.  If parComp = TRUE and autoConv = TRUE, the chains are run until convergence criteria are met.  Currently, chains are run for a single period equal to \code{burn.in} iterations and monitored for \code{n.iter} iterations.  If PSRF on the three values of pi are lower than 1.05, then the chain is stopped and the chain is run for \code{n.iter} more iterations monitoring all values specified by \code{parameters}.  If the PSRF for any value is higher than 1.05, then the chain is run for \code{burn.in} + \code{n.iter} more iterations and the PSRF is again checked.  This is repeated, at most, \code{max.auto} times.  If PSRF is not met by \code{max.auto} attempts, a warning message is printed and the chains are run \code{n.iter} more times with all parameters monitored.}
+\item{autoConv}{Logical.  If \code{autoConv = TRUE}, chains are run until convergence criteria are met.  Currently, chains are run for a single period equal to \code{burn.in} iterations and monitored for \code{n.iter} iterations.  If \code{mcmc.conv.diagnostic = "MCMCSE"}, MCMCSE values are calculated for each parameter in \code{mcmc.conv.diagnostic}.  If all values are less than \code{mcmcse.conv.precision} then the chain is stopped and the chain is run for \code{n.iter} more iterations monitoring all values specified by \code{parameters}.  If the MCMCSE for any parameter is higher than \code{mcmcse.conv.precision}, then the chain is run for \code{burn.in} + \code{n.iter} more iterations and the MCMCSE is again checked.  This is repeated, at most, \code{max.auto} times.  If the MCMCSE condition is not met by \code{max.auto} attempts, a warning message is printed and the chains are run \code{n.iter} more times with all parameters monitored.  If \code{mcmc.conv.diagnostic = "PSRF"}, the same procedure occurs checking that all PSRF values are less than 1.05.}
 
-\item{max.auto}{Integer.  Number of subsequent tries to achieve a PSRF of 1.05 on pi.  After \code{max.auto} failures, a warning is thrown and the chain is run \code{n.iter} more times monitoring all specified parameters.}
+\item{max.auto}{Integer.  Number of subsequent tries to achieve the convergence conditions outlined by \code{autoConv}.  After \code{max.auto} failures, a warning is thrown and the chain is run \code{n.iter} more times monitoring all specified parameters.}
+
+\item{mcmc.conv.diagnostic}{a string with the method to use to evaluate convergence. Currenctly, \code{PSRF} and \code{MCMCSE} (default) are implemented.}
+
+\item{mcmc.conv.parameters}{string vector with the name of the parameters to check for convergence using the MCMC standard error. Default is \code{pi},}
+
+\item{mcmcse.conv.precision}{numeric, the value of the precision criterion to evaluate convergence using the MCMC standard error. The MCMC std. error of all parameters included in \code{mcmcse.conv.parameter} must be below the threshold defined by the value of \code{mcmc.conv.precision} (default is 0.05) to pass the convergence diagnostic.}
+
+\item{mcmcse.combine}{boolean, if \code{TRUE}, the MCMCSE is computed after the chains are combined. Otherwise, the MCMC std. error is computed for each chain, and the maximum std. error of each parameter is used for the diagnostic}
 }
 \value{
-The function returns a nested list. The first element of the list is a \code{mcmc} object with the samples from the posterior distribution. The second element of the list is a list of summaries (HPD, Mean, etc)
+The function returns a nested list of class \code{eforensics} with length equal to the number of chains. Each sublist contains up to three named objects:
+\describe{
+  \item{parameters}{A \code{mcmc} object that contains the posterior draws for all monitored parameters except for the individual fraud classifications.}
+  \item{k.hat}{A vector that contains the posterior modal classification for each observation.  1 corresponds to no fraud, 2 corresponds to incremental fraud, and 3 corresponds to extreme fraud.}
+  \item{piZi}{A matrix with three columns that contains the posterior probability of belonging to each class for each observation.}
+}
+  
+If \code{model = "qbl"} or \code{model = "bl"}, the proportion of frauds estimated at each observation is returned.  These values can be accessed for object \code{foo} using \code{attr(foo,"frauds")}.  This attribute is a two element list that contains the estimated proportion of votes that are Stolen and Manufactured.  Posterior means, HPD intervals, and posterior quantiles are returned for each observation in the data set.  These quantities are automatically aggregated over all chains.
 }
 \description{
 This function estimates a finite mixture model of election fraud
 }
 \examples{
 
-model    = 'bl'
+set.seed(12345)
+library(eforensics)
+model    = 'qbl'
 
 ## simulate data
 ## -------------
-sim_data = ef_simulateData(n=700, nCov=1, model=model)
+set.seed(12345)
+sim_data = ef_simulateData(n=250, nCov=1, nCov.fraud=1,
+              model="bbl", overdispersion = 100, pi = c(.95,.04,.01))
 data     = sim_data$data
 
 ## mcmc parameters
 ## ---------------
-mcmc    = list(burn.in=1, n.adapt=10, n.iter=100, n.chains=2)
+mcmc    = list(burn.in=1000, n.adapt=1000, n.iter=1000, n.chains=2)
 
 ## samples
 ## -------
 ## help(eforensics)
-devtools::document(pkg_folder)
-samples    = eforensics(
-    w ~ x1.w ,
-    a ~ x1.a,
-    mu.iota.m ~ x1.iota.m, 
-    mu.iota.s ~ x1.iota.s,
-    ## mu.chi.m  ~ x1.chi.m, 
-    ## mu.chi.s  ~ x1.chi.s,
-    data=data,
-    elegible.voters="N",
-    model=model, mcmc=mcmc, get.dic=0)
 
+samples    = eforensics(
+  w ~ x1.w ,
+  a ~ x1.a,
+  mu.iota.m ~ x1.iota.m,
+  mu.iota.s ~ x1.iota.s,
+  mu.chi.m  ~ x1.chi.m,
+  mu.chi.s  ~ x1.chi.s,
+  data=data,
+  eligible.voters="N",
+  model="qbl",
+  mcmc=mcmc,
+  parameters = "all",
+  parComp = TRUE,
+  autoConv = TRUE,
+  max.auto = 10,
+  mcmc.conv.diagnostic = "MCMCSE",
+  mcmc.conv.parameters = c("pi"),
+  mcmcse.conv.precision = .05,
+  mcmcse.combine = FALSE
+)
+
+#Summaries for each of the monitored parameters
+#Look at each chain separately
 summary(samples)
+#Combine the chains
 summary(samples, join.chains=T)
 
+#Look at the estimated fraud proportions for each observation
+attr(samples,"frauds")
+#Look at Manufactured and Stolen separately
+attr(samples,"frauds")$Manufactured
+attr(samples,"frauds")$Stolen
+
+#How accurate is the classification?
+
+#Get the true categories
+true_z <- sim_data$latent$z
+
+#What is the modal estimate for the class?
+num_z <- (samples[[1]]$piZi*1000) + (samples[[2]]$piZi*1000)
+max_z <- apply(num_z,1,which.max)
+
+#How accurate is the modal classification?
+table(true_z,max_z)
+
+#How accurately do we uncover the proportion of frauds for each observation?
+
+#Manufactured
+true_man <- ((true_z == 1)*0) + ((true_z == 2)*sim_data$latent$iota.m) + 
+            ((true_z == 3)*sim_data$latent$chi.m)
+
+#What is the posterior mean proportion of manufactured votes
+pred_man <- attr(samples,"frauds")$Manufactured[,1]
+
+#Are they close?
+plot(true_man, pred_man, xlab = "True Proportion Manufactured Votes", 
+     ylab = "Estimated Proportion Manufactured Votes")
+
+#Stolen
+true_stolen <- ((true_z == 1)*0) + ((true_z == 2)*sim_data$latent$iota.s) + 
+               ((true_z == 3)*sim_data$latent$chi.s)
+
+#What is the posterior mean proportion of manufactured votes
+pred_stolen <- attr(samples,"frauds")$Stolen[,1]
+
+#Are they close?
+plot(true_stolen, pred_stolen, xlab = "True Proportion Stolen Votes", 
+     ylab = "Estimated Proportion Stolen Votes")
+
+}
+\references{
+Flegal, J. M., Haran, M., & Jones, G. L., Markov chain monte carlo: can we trust the third significant figure?, Statistical Science, 23(2), 250–260 (2008).
+Brooks, S. P., & Gelman, A., General methods for monitoring convergence of iterative simulations, Journal of computational and graphical statistics, 7(4), 434–455 (1998).
 }

@@ -10,6 +10,10 @@
  ---------------------------------------
 
  Authors:
+   - Diogo Ferrari
+   - Walter Mebane
+   - Kevin McAlister
+   - Patrick Wu
 
  Supported by NSF grant SES 1523355
 
@@ -50,5 +54,15 @@ if(getRversion() >= "2.15.1")  utils::globalVariables(c(".", "contrasts",
                                                         "Total.Fraud.Mean",
                                                         "Total.Fraud.HPD.lower",
                                                         "Total.Fraud.HPD.upper",
-                                                        "True"
+                                                        "True",
+                                                        "fraud.distribution.label",
+                                                        "Group",
+                                                        "Covariate",
+                                                        "bl_cov",
+                                                        "MCMCSE",
+                                                        "MCMCSE.max",
+                                                        "psrf",
+                                                        "rowname",
+                                                        "label",
+                                                        "1", "2", "3"
                                                         ))

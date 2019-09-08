@@ -1,5 +1,11 @@
 
+## {{{ docs }}}
+#' Get true values from simulated data
+#'
+#' @param sim_data an object from \code{ef_simulateData}
+#'
 #' @export
+## }}}
 ef_get_true <- function(sim_data)
 {
     true = sim_data$parameters %>%
@@ -46,6 +52,7 @@ ef_classify <- function(data, samples){
 }
 
 ## {{{ docs }}}
+
 #' Summary 
 #'
 #' This function return summaries of the posterior distribution estimated by the function \code{eforensics}
@@ -55,6 +62,7 @@ ef_classify <- function(data, samples){
 #' @param ... join.chains=TRUE can be used to provide summaries of chains after they are combined together 
 #'
 #' @export
+
 ## }}}
 summary.eforensics <- function(object, ...)
 {
@@ -110,13 +118,13 @@ summary.eforensics <- function(object, ...)
 summary.eforensics_sim_data <- function(object,...)
 {
     ## get additional parameters ...
-    elegible.voters.provided =FALSE
+    eligible.voters.provided =FALSE
     args = as.list(match.call())
-    if(!'elegible.voters' %in% names(args)) {
-        elegible.voters = NULL
+    if(!'eligible.voters' %in% names(args)) {
+        eligible.voters = NULL
     }else{
-        elegible.voters = eval(args$elegible.voters)
-        elegible.voters.provided =TRUE
+        eligible.voters = eval(args$eligible.voters)
+        eligible.voters.provided =TRUE
     }
 
     
@@ -155,7 +163,7 @@ summary.eforensics_sim_data <- function(object,...)
                                                            z.True == 2 ~ iota.s.True * tau.True * (1-nu.True),
                                                                z.True == 3 ~ chi.s.True * tau.True * (1-nu.True)),
                       Total.Fraud.True = Manufactured.Fraud.True + Stolen.Fraud.True )
-    if (elegible.voters.provided) {
+    if (eligible.voters.provided) {
         N = sim_data_summ[,N] %>% dplyr::pull(.)
         sim_data_summ = sim_data_summ  %>%
             dplyr::mutate(Manufactured.Fraud.True = N*Manufactured.Fraud.True,
@@ -173,6 +181,7 @@ print.eforensics <- function(x, ...)
 }
 
 ## {{{ docs }}}
+
 #' Get parameters
 #'
 #' This function returns the parameters of the model
@@ -181,6 +190,7 @@ print.eforensics <- function(x, ...)
 #' @param samples the output of the function \code{eforensics} 
 #'
 #' @export
+
 ## }}}
 ef_get_parameters <- function(samples)
 {
@@ -194,21 +204,23 @@ ef_get_parameters <- function(samples)
 
 
 ## {{{ docs }}}
+
 #' Compute Fraud Distribution
 #'
 #' This function returns the estimated posterior distribution of frauds at the individual-level observation
 #'
 #'
 #' @param data the data set used in the estimation
-#' @param samples the output of \link{eforensics} function
-#' @param model a string with the model used in the estimation (e.g., 'rn', 'bl'). See \link{eforensics} function
-#' @param elegible.voters either \code{NULL} (default) or a string with the name of the column containing the number of elegible voters
+#' @param samples the output of \code{eforensics} function
+#' @param model a string with the model used in the estimation (e.g., 'rn', 'bl'). See \code{eforensics} function
+#' @param eligible.voters either \code{NULL} (default) or a string with the name of the column containing the number of eligible voters
 #' @inheritParams plot_local_fraud 
 #' @return It returns a tibble data.frame with the data points classified into no fraud, incremental, or extreme fraud distribution along with the posterior distribution of fraud for each observation
 #'
 #' @export
+
 ## }}}
-ef_get_local_fraud <- function(data, samples, model, elegible.voters=NULL, sim_data=NULL)
+ef_get_local_fraud <- function(data, samples, model, eligible.voters=NULL, sim_data=NULL)
 {
     op.default <- options()
     on.exit(options(op.default), add=TRUE)
@@ -256,13 +268,13 @@ ef_get_local_fraud <- function(data, samples, model, elegible.voters=NULL, sim_d
     ## ---------------------------------------------
     Z = dat$fraud.distribution.idx
     N=rep(NA, nrow(dat))
-    if (!is.null(elegible.voters) ) {
-        if (elegible.voters %in% names(dat) ) {
-            N = dat[,elegible.voters]
+    if (!is.null(eligible.voters) ) {
+        if (eligible.voters %in% names(dat) ) {
+            N = dat[,eligible.voters]
             N = N %>% dplyr::pull(.)
             cat("\nLocal fraud will be returned in counts.\n")
         }else{
-            cat(paste0("\n\nNOTE: The column ", elegible.voters, "is not in the data. The function will return fraud proportions instead of counts.") )
+            cat(paste0("\n\nNOTE: The column ", eligible.voters, "is not in the data. The function will return fraud proportions instead of counts.") )
         }
     }else{
         cat("\nLocal fraud will be returned in proportion of votes.\n")
@@ -313,9 +325,9 @@ ef_get_local_fraud <- function(data, samples, model, elegible.voters=NULL, sim_d
     ## get and merge true value if provided
     if (!is.null(sim_data)) {
         dat  = dat %>% dplyr::full_join(., summary(sim_data), by=c()) 
-        if (!is.null(elegible.voters) ) {
-            if (elegible.voters %in% names(dat)) {
-                N = dat[,elegible.voters] %>% dplyr::pull(.)
+        if (!is.null(eligible.voters) ) {
+            if (eligible.voters %in% names(dat)) {
+                N = dat[,eligible.voters] %>% dplyr::pull(.)
                 dat = dat  %>%
                     dplyr::mutate(Manufactured.Fraud.True = N*Manufactured.Fraud.True,
                                   Stolen.Fraud.True = N*Stolen.Fraud.True ,
@@ -389,13 +401,15 @@ parameter.rename  <- function(parameter)
     return(parameter)
 }
 ## {{{ docs }}}
+
 #' Plot summary of posterior distribution
 #'
-#' Plot summary of the samples from posterior distribution produced by \code{\link{eforensics}} function
+#' Plot summary of the samples from posterior distribution produced by \code{eforensics} function
 #'
 #'
 #' @inheritParams summary.eforensics
-#' @param true used when data was generated by simulation produced by \code{\link{ef_simulateData}} function. The value must the be output of the function \code{\link{ef_get_true()}}
+#' @param samples the output of the function \code{eforensics}.
+#' @param true used when data was generated by simulation produced by \code{ef_simulateData} function. The value must the be output of the function \code{ef_get_true()}
 #' @param parse boolean, if \code{TRUE}, text in the tick marks of the y-axis is parsed.
 #' @param plots a string vector with any combination of "Abstention and Vote", "Local Fraud Probabilities", and "Fraud Probability". It defines with plot will be included in the figure. Default includes all.
 #' @param title a string with the title of the plot
@@ -405,6 +419,7 @@ parameter.rename  <- function(parameter)
 #'
 #'
 #' @export
+
 ## }}}
 ef_plot <- function(samples, true=NULL, parse=FALSE, plots=c("Abstention and Vote", "Local Fraud Probabilities", "Fraud Probability" ), title=NULL, subtitle=NULL, xlab=NULL, ylab=NULL)
 {
@@ -491,6 +506,93 @@ ef_plot <- function(samples, true=NULL, parse=FALSE, plots=c("Abstention and Vot
     return(g)
 }
 
+## {{{ docs }}}
+#' Countor plot
+#'
+#' Create a contour plot with marginal densities
+#'
+#' @param data a data frame
+#' @param samples the output of the function \code{eforensics}. It is optional. If provided, the plot will display the classification of the points in each fraud distribution
+#' @param x a string with the name of the variable in \code{data} that will be plotted in the x-axis
+#' @param y a string with the name of the variable in \code{data} that will be plotted in the y-axis
+#' @param xlab a string with the text to appear in the x-axis
+#' @param ylab a string with the text to appear in the y-axis
+#' @param contour.fill.color boolean, if \code{TRUE}, it uses the contour.fill.color.key to color the contour of the bivariate density
+#' @param contour.fill.color.key a string with the name of the variable in \code{data} to use as a color key of the contour of the bivariate density. It is used only if \code{samples} is not provided
+#' @param pch.color.key a string with the name of the variable in \code{data} that will be used to color the points. Default is \code{NULL}. It is used only if \code{samples} is not provided
+#' @param pch.size a integer with the size of the points. Default is 1
+#' @param pch.show a boolean value indicating if the points should be displayed in the plot (T) or not (F). Default is TRUE
+#' @param legend.title a string with the title of the legend 
+#'
+#' @return a ggplot object
+#'
+#' @export
+## }}}
+ef_byplot <- function(data, samples=NULL, x, y, xlab, ylab, contour.fill.color=FALSE, contour.fill.color.key=NULL, pch.color.key=NULL, pch.size=2, pch.show=TRUE, legend.title="")
+{
+    options(warn=-1)
+    on.exit(options(warn=0))
+
+    if (!is.null(samples)) {
+        data                  = ef_classify(data, samples)
+        pch.color.key             = "fraud.distribution.label" 
+        legend.title          = "Fraud Distribution (posterior proportion)"
+        if(contour.fill.color){
+            contour.fill.color.key = "fraud.distribution.label"
+        }
+        data = data %>%
+            dplyr::left_join(.,
+                             summary(samples, join.chains=T) %>% dplyr::filter(stringr::str_detect(Parameter, pattern="pi"))  %>%
+                             dplyr::select(Parameter, Mean)  %>%
+                             dplyr::mutate_if(.predicate=is.numeric, .funs=list(~round(., digits=3))) %>%
+                             dplyr::mutate(fraud.distribution.label = dplyr::case_when(Parameter == "pi[1]"~"no fraud",
+                                                                                       Parameter == "pi[2]"~"incremental fraud",
+                                                                                       Parameter == "pi[3]"~"extreme fraud")) ,
+                             by = "fraud.distribution.label"
+                             ) %>%
+            dplyr::mutate(fraud.distribution.label = paste0(fraud.distribution.label , " (",Mean,")")  )
+        data$fraud.distribution.label = stringr::str_to_title(data$fraud.distribution.label, locale = "en")
+    }
+    
+    g = data %>%
+        ggplot2::ggplot(ggplot2::aes_string(x = x, y = y))
+
+    if (pch.show & is.null(pch.color.key)) {
+            g = g + ggplot2::geom_point(colour="#00000024", size=pch.size)
+    }
+    if (pch.show & !is.null(pch.color.key)) {
+            g = g +
+                ggplot2::geom_point(ggplot2::aes_string(colour=pch.color.key), size=pch.size, alpha=.3) +
+                ggplot2::guides(color=ggplot2::guide_legend(title=legend.title))
+    }
+    if (!contour.fill.color) {
+        contour.fill.color.key="..level.."
+        g = g +  ggplot2::guides(fill = FALSE)
+    }else{
+        if (is.null(contour.fill.color.key)) {
+            stop("\n\nYou must provide the contour.fill.color.key")
+        }
+        g = g + ggplot2::guides(fill=ggplot2::guide_legend(legend.title)) 
+    }
+
+    g = g +
+        ggplot2::stat_density_2d(ggplot2::aes_string(fill=contour.fill.color.key), geom = "polygon", alpha=.2) +
+        ggplot2::xlab(xlab)+
+        ggplot2::ylab(ylab)+
+        ggplot2::theme_bw() +
+        ggplot2::theme(
+                     legend.position = c(1,1),                                          # position of the legend (top/bottom/(x,y coord)/...)
+                     legend.justification = c(1,1),                                     # justification the position: "center" or c(0,0)=(r,t), c(1,1)=(l,b)
+                     legend.background= ggplot2::element_rect(fill='transparent'),      # backg of each ind. level contour.fill.color for border
+                     )
+
+    if (is.null(pch.color.key)) {
+        g = g + ggplot2::scale_colour_distiller(palette='Blues')
+    }
+    g = g %>% ggExtra::ggMarginal(.,  type = "histogram", fill="lightsteelblue1", colour='white')
+    return(g)
+}
+
 ## put in the package
 ## ------------------
 ## {{{ docs }}}
@@ -499,15 +601,15 @@ ef_plot <- function(samples, true=NULL, parse=FALSE, plots=c("Abstention and Vot
 #'
 #' This function creates a plot with posterior distribution of fraud in a given election unit (ballot box, pooling place, etc)
 #'
-#' @param data either the data set used to estimate fraud or the output of the function \link{ef_get_local_fraud}
-#' @param samples eigher \code{NULL} (default) (which requires \code{data} to be the output of the function \link{ef_get_local_fraud}) or the outuput of the function \link{eforensics}
-#' @param model either \code{NULL} (default) (which requires \code{data} to be the output of the function \link{ef_get_local_fraud}) or a string with the name of the model used to estimate fraud (see \link{eforensics})
+#' @param data either the data set used to estimate fraud or the output of the function \code{ef_get_local_fraud}
+#' @param samples eigher \code{NULL} (default) (which requires \code{data} to be the output of the function \code{ef_get_local_fraud}) or the outuput of the function \code{eforensics}
+#' @param model either \code{NULL} (default) (which requires \code{data} to be the output of the function \code{ef_get_local_fraud}) or a string with the name of the model used to estimate fraud (see \code{eforensics})
 #' @param row an integer with the row number of data to plot
 #' @param by.types boolean, if \code{TRUE} incremental, extreme, and total fraud are displayed. Otherwise, only distribution of total fraud is shown
 #' @param election.unit a string with the name of the column that contains a label that identifies the election unit. Default \code{NULL}
 #' @param plot.mean boolean, if \code{TRUE} the posterior average of the distribution is also displayed as well as the 95\% HPD
 #' @param legend.position a string with the position of the legend when posterior mean is displayed. Accepts \code{top}, \code{bottom}, \code{left}, \code{right}
-#' @param sim_data the output of the function \link{ef_simulateData}. It is used only if the fraud was estimated using simulated data. If provided, the plot also display the true fraud value. Default \code{NULL}
+#' @param sim_data the output of the function \code{ef_simulateData}. It is used only if the fraud was estimated using simulated data. If provided, the plot also display the true fraud value. Default \code{NULL}
 #' @param title a string with the title of the plot. Default \code{NULL}
 #' @param subtitle a string with the subtitle of the plot. Default \code{NULL}
 #'

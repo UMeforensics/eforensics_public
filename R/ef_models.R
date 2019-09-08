@@ -14,7 +14,7 @@ transpose_df <- function(df) {
 ## }}}
 ef_models <- function()
 {
-    model1 = c("bl", "Binomial-logistic model", "Votes for the winner and abstention must be provided in counts. Number of elegible voters must also be provided") 
+    model1 = c("bl", "Binomial-logistic model", "Votes for the winner and abstention must be provided in counts. Number of eligible voters must also be provided") 
     model2 = c("rn", "Restricted Normal model", "Votes for the winner and abstention must be provided as proportions") 
     tab = tibble::data_frame(
                 model1=model1,
@@ -43,9 +43,15 @@ bl <- function()
 	k = .7
         ## parameters of the dist of the mixing probabilities  
         ## --------------------------------------------------
-	for (i in 1:3){
-	    psi[i]<-1             
-	}   
+	# for (i in 1:3){
+	#     psi[i]<-1             
+	# } 
+	pi.aux1 ~ dunif(0,1)
+  pi.aux2 ~ dunif(0,pi.aux1)
+  pi.aux3 ~ dunif(0,pi.aux1)
+  pi[1] <- pi.aux1/(pi.aux1 + pi.aux2 + pi.aux3)
+  pi[2] <- pi.aux2/(pi.aux1 + pi.aux2 + pi.aux3)
+  pi[3] <- pi.aux3/(pi.aux1 + pi.aux2 + pi.aux3)
         ## Expectaiton and variance of the Linear coefficients
         ## ---------------------------------------------------
         ## ABSTENTION
@@ -94,7 +100,7 @@ bl <- function()
 
 	## Hyperpriors
 	## -----------
-	pi	         ~ ddirch( psi )                                  ## mixing probabilities
+	# pi	         ~ ddirch( psi )                                  ## mixing probabilities
    	beta.tau	 ~ dmnorm.vcov(mu.beta.tau, sigma.beta.tau)       ## linear coefficients of expectation of turnout
    	beta.nu	         ~ dmnorm.vcov(mu.beta.nu, sigma.beta.nu)         ## linear coefficients of expectation of votes for the winner
    	beta.iota.m	 ~ dmnorm.vcov(mu.beta.iota.m, sigma.beta.iota.m) ## linear coefficients of expectation of incremental fraud, manufactored votes
@@ -948,6 +954,211 @@ bbl <- function()
   chi.m[j]  <- ifelse( N.chi.m[j]/N[j] == 1, .999, N.chi.m[j]/N[j])		## avoiding 1's in order to compute w.check
   chi.s[j]  <- N.chi.s[j]/N[j]
   
+  ## ## Given alpha, use that as the success probability and draw a and w from binomial distribution
+  ## N.tau[j]  ~ dbin(mu.tau[j], N[j])  ## counts for turnout 
+  ## N.nu[j]   ~ dbin(mu.nu[j] ,N[j])   ## counts for votes for the winner 
+  ## ## Computing the propostions
+  ## tau[j]  <- N.tau[j]/N[j]
+  ## nu[j]   <- N.nu[j] /N[j]
+  
+  ## Data model
+  ## ----------
+  p.a[j] = (Z[j] == 1) * (1 - mu.tau[j]) +
+  (Z[j] == 2) * (1 - mu.tau[j]) * (1 - iota.m[j]) +
+  (Z[j] == 3) * (1 - mu.tau[j]) * (1 - chi.m[j])
+  
+  p.w[j]  = (Z[j] == 1) * ( mu.nu[j] * (1 - a[j]/N[j]) ) +
+  (Z[j] == 2) * ( mu.nu[j] * ( (1-iota.s[j]) / (1-iota.m[j]) )*( 1-iota.m[j]-a[j]/N[j]) + a[j]/N[j] * ( (iota.m[j] - iota.s[j]) / (1-iota.m[j]) ) + iota.s[j] ) +
+  (Z[j] == 3) * ( mu.nu[j] * ( (1-chi.s[j]) /  (1-chi.m[j])  )*( 1-chi.m[j] -a[j]/N[j]) + a[j]/N[j] * ( (chi.m[j] - chi.s[j]  ) / (1-chi.m[j])  ) + chi.s[j]  )
+  
+  ## Likelihood
+  a[j] ~ dbin(p.a[j],N[j])
+  w[j] ~ dbin(p.w[j],N[j])
+  }
+}
+"
+}
+
+##Quasi-binomial model with random effects
+qbl <- function()
+{
+  "model{
+  ## ---------
+  ## Constants
+  ## ---------
+  ## threshold for incremental fraud
+  ## -------------------------------
+  k <- .7
+  ## parameters of the dist of the mixing probabilities  
+  ## --------------------------------------------------
+  # for (i in 1:3){
+  #   psi[i] <- 1
+  # }
+  pi.aux1 ~ dunif(0,1)
+  pi.aux2 ~ dunif(0,pi.aux1)
+  pi.aux3 ~ dunif(0,pi.aux1)
+  pi[1] <- pi.aux1/(pi.aux1 + pi.aux2 + pi.aux3)
+  pi[2] <- pi.aux2/(pi.aux1 + pi.aux2 + pi.aux3)
+  pi[3] <- pi.aux3/(pi.aux1 + pi.aux2 + pi.aux3)
+  ## Expectaiton and variance of the Linear coefficients
+  ## ---------------------------------------------------
+  ## ABSTENTION
+  for (i in 1:dxa) {     
+  mu.beta.tau[i]  <- 0
+  beta.tau[i] <- ifelse(i == 1, tau.alpha, beta.tau1[i])
+  for (j in 1:dxa) {
+  sigma.beta.tau[i,j] <- ifelse(i == j, ifelse(i == 1, 10000, 1), 0)
+  }
+  }
+  ## VOTERS FOR THE LEADING PARTY
+  for (i in 1:dxw) {     
+  mu.beta.nu[i]   <- 0
+  beta.nu[i] <- ifelse(i == 1, nu.alpha, beta.nu1[i])
+  for (j in 1:dxw) {
+  sigma.beta.nu[i,j]  <- ifelse(i == j, ifelse(i == 1, 10000, 1), 0)
+  }
+  }
+  ## INCREMENTAL FRAUD, MANUFACTORED VOTES
+  for (i in 1:dx.iota.m) {       
+  mu.beta.iota.m[i]  <- 0
+  beta.iota.m[i] <- ifelse(i == 1, iota.m.alpha, beta.iota.m1[i])
+  for (j in 1:dx.iota.m) {
+  sigma.beta.iota.m[i,j] <- ifelse(i == j, ifelse(i == 1, 10000, 1), 0)
+  }
+  }
+  ## INCREMENTAL FRAUD, STOLEN VOTES
+  for (i in 1:dx.iota.s) {       
+  mu.beta.iota.s[i]  <- 0
+  beta.iota.s[i] <- ifelse(i == 1, iota.s.alpha, beta.iota.s1[i])
+  for (j in 1:dx.iota.s) {
+  sigma.beta.iota.s[i,j] <- ifelse(i == j, ifelse(i == 1, 10000, 1), 0)
+  }
+  }
+  ## EXTREME FRAUD, MANUFACTORED VOTES
+  for (i in 1:dx.chi.m) {       
+  mu.beta.chi.m[i]  <- 0
+  beta.chi.m[i] <- ifelse(i == 1, chi.m.alpha, beta.chi.m1[i])
+  for (j in 1:dx.chi.m) {
+  sigma.beta.chi.m[i,j] <- ifelse(i == j, ifelse(i == 1, 10000, 1), 0)
+  }
+  }
+  ## EXTREME FRAUD, STOLEN VOTES
+  for (i in 1:dx.chi.s) {       
+  mu.beta.chi.s[i]  <- 0
+  beta.chi.s[i] <- ifelse(i == 1, chi.s.alpha, beta.chi.s1[i])
+  for (j in 1:dx.chi.s) {
+  sigma.beta.chi.s[i,j] <- ifelse(i == j, ifelse(i == 1, 10000, 1), 0)
+  }
+  }
+  
+  
+  ## Hyperpriors
+  ## -----------
+  #pi	         ~ ddirch( psi )                                  ## mixing probabilities
+  beta.tau1	 ~ dmnorm(mu.beta.tau, sigma.beta.tau)       ## linear coefficients of expectation of turnout
+  beta.nu1	 ~ dmnorm(mu.beta.nu, sigma.beta.nu)         ## linear coefficients of expectation of votes for the winner
+  beta.iota.m1	 ~ dmnorm(mu.beta.iota.m, sigma.beta.iota.m) ## linear coefficients of expectation of incremental fraud, manufactored votes
+  beta.iota.s1	 ~ dmnorm(mu.beta.iota.s, sigma.beta.iota.s) ## linear coefficients of expectation of incremental fraud, stolen votes
+  beta.chi.m1	 ~ dmnorm(mu.beta.chi.m, sigma.beta.chi.m)   ## linear coefficients of expectation of extreme fraud    , manufactored votes
+  beta.chi.s1	 ~ dmnorm(mu.beta.chi.s, sigma.beta.chi.s)   ## linear coefficients of expectation of extreme fraud    , stolen votes
+  
+  ## mu.iota.m   ~ dunif(0,k)
+  ## mu.iota.s   ~ dunif(0,k)
+  ## mu.chi.m    ~ dunif(k,1)
+  ## mu.chi.s    ~ dunif(k,1)
+  
+  imb ~ dexp(5)
+  isb ~ dexp(5)
+  cmb ~ dexp(5)
+  csb ~ dexp(5)
+  nb ~ dexp(5)
+  tb ~ dexp(5)
+
+  # imb ~ dunif(0,2)
+  # isb ~ dunif(0,2)
+  # cmb ~ dunif(0,2)
+  # csb ~ dunif(0,2)
+  # nb ~ dunif(0,2)
+  # tb ~ dunif(0,2)
+
+  iota.m.beta <- 1/imb
+  iota.s.beta <- 1/isb
+  chi.m.beta <- 1/cmb
+  chi.s.beta <- 1/csb
+  nu.beta <- 1/nb
+  tau.beta <- 1/tb
+  
+  iota.m.alpha ~ dnorm(0,1)
+  iota.s.alpha ~ dnorm(0,1)
+  chi.m.alpha ~ dnorm(0,1)
+  chi.s.alpha ~ dnorm(0,1)
+  nu.alpha ~ dnorm(0,1)
+  tau.alpha ~ dnorm(0,1)
+  
+  #iota.m.beta <- 1/imb
+  #iota.s.beta <- 1/isb
+  #chi.m.beta <- 1/cmb
+  #chi.s.beta <- 1/csb
+  #nu.beta <- 1/nb
+  #tau.beta <- 1/tb
+  
+  
+  
+  for(j in 1:n){
+  
+  
+  
+  omt[j] <- inprod(Xa[j,], beta.tau1)
+  omn[j] <- inprod(Xw[j,], beta.nu1)
+  oim[j] <- inprod(X.iota.m[j,], beta.iota.m1)
+  ois[j] <- inprod(X.iota.s[j,], beta.iota.s1)
+  ocm[j] <- inprod(X.chi.m[j,], beta.chi.m1)
+  ocs[j] <- inprod(X.chi.s[j,], beta.chi.s1)
+  ##Add in a varying intercept by individual
+  th[j] ~ dnorm(tau.alpha,tau.beta)
+  nh[j] ~ dnorm(nu.alpha,nu.beta)
+  imh[j] ~ dnorm(iota.m.alpha,iota.m.beta)
+  ish[j] ~ dnorm(iota.s.alpha,iota.s.beta)
+  cmh[j] ~ dnorm(chi.m.alpha,chi.m.beta)
+  csh[j] ~ dnorm(chi.s.alpha,chi.s.beta)
+
+  ## linear transformation of the parameters of tau and nu
+  mu.tau[j] <- ilogit(th[j] + omt[j])
+  mu.nu[j]  <- ilogit(nh[j] + omn[j])
+  
+  ## the expectations of fraud need to be normalized b/w [0,k] and [k,1]
+  mu.iota.m[j] <- k*(ilogit(imh[j] + oim[j]))
+  mu.iota.s[j] <- k*(ilogit(ish[j] + ois[j]))
+  mu.chi.m[j]  <- k + ((1 - k)*ilogit(ocm[j] + cmh[j]))
+  mu.chi.s[j]  <- k + ((1 - k)*ilogit(ocs[j] + csh[j]))
+  
+  }
+  
+  
+  for(j in 1:n){
+  #mu.tau[j] ~ dbeta(mu.tau.i.alpha[j],tau.beta)
+  #mu.nu[j] ~ dbeta(mu.nu.i.alpha[j],nu.beta)
+  N.iota.s[j] ~ dbin(mu.iota.s[j],N[j])
+  N.iota.m[j] ~ dbin(mu.iota.m[j],N[j])
+  N.chi.s[j]  ~ dbin(mu.chi.s[j], N[j])
+  N.chi.m[j]  ~ dbin(mu.chi.m[j], N[j])
+  
+  
+  ## Priors
+  ## ------
+  
+  Z[j] ~ dcat(pi)
+  
+  ## Set success probability for each iota (incremental fraue) and chi (extreme fraud) for both cases os manufactured and stolen votes
+  #N.iota.s[j] ~ dbin(mu.iota.s[j], N[j])
+  #N.iota.m[j] ~ dbin(mu.iota.m[j], N[j])
+  #N.chi.s[j]  ~ dbin(mu.chi.s[j] , N[j])
+  #N.chi.m[j]  ~ dbin(mu.chi.m[j] , N[j])
+  ## Computing the propostions
+  iota.m[j] <- ifelse( N.iota.m[j]/N[j] == 1, .999, N.iota.m[j]/N[j]) 		## avoiding 1's in order to compute w.check
+  iota.s[j] <- N.iota.s[j]/N[j]
+  chi.m[j]  <- ifelse( N.chi.m[j]/N[j] == 1, .999, N.chi.m[j]/N[j])		## avoiding 1's in order to compute w.check
+  chi.s[j]  <- N.chi.s[j]/N[j]
   ## ## Given alpha, use that as the success probability and draw a and w from binomial distribution
   ## N.tau[j]  ~ dbin(mu.tau[j], N[j])  ## counts for turnout 
   ## N.nu[j]   ~ dbin(mu.nu[j] ,N[j])   ## counts for votes for the winner 

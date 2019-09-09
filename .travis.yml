@@ -23,7 +23,7 @@ script:
   - travis_wait 60 R CMD build .
   - travis_wait 60 R CMD check *tar.gz
   # TODO: Change if tarball versioning changes
-  - travis_wait 60 R CMD INSTALL eforensics_0.0.0.9000.tar.gz
+  - travis_wait 60 R CMD INSTALL eforensics_0.0.1.tar.gz
   # TODO: Run Tests:
   - travis_wait 90 make error_test
   - travis_wait 90 make vignette

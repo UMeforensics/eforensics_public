@@ -10,3 +10,4 @@ Makefile
 ^test$
 ^cran-comments\.md$
 CRAN-RELEASE
+^CRAN-RELEASE$

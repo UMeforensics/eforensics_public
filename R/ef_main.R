@@ -29,10 +29,10 @@ order.formulas <- function(formula3, formula4, formula5, formula6)
             formulas.final[[idx[i]]] = formulas[[i]]
         }
     }
-    if ( is.na(formulas.final[[1]]) ) {formulas.final[[1]] = mu.iota.m ~ 1}
-    if ( is.na(formulas.final[[2]]) ) {formulas.final[[2]] = mu.iota.s ~ 1}
-    if ( is.na(formulas.final[[3]]) ) {formulas.final[[3]] = mu.chi.m ~ 1}
-    if ( is.na(formulas.final[[4]]) ) {formulas.final[[4]] = mu.chi.s ~ 1}
+    if ( is.na(formulas.final[[1]])[1] ) {formulas.final[[1]] = mu.iota.m ~ 1}
+    if ( is.na(formulas.final[[2]])[1] ) {formulas.final[[2]] = mu.iota.s ~ 1}
+    if ( is.na(formulas.final[[3]])[1] ) {formulas.final[[3]] = mu.chi.m ~ 1}
+    if ( is.na(formulas.final[[4]])[1] ) {formulas.final[[4]] = mu.chi.s ~ 1}
 
     return(formulas.final)
 }
@@ -417,7 +417,7 @@ ef_parameters_to_check_convergence <- function(mcmc.conv.parameters)
 #' ## help(eforensics)
 #' 
 #' samples    = eforensics(
-#'   w ~ x1.w ,
+#'   w ~ x1.w,
 #'   a ~ x1.a,
 #'   mu.iota.m ~ x1.iota.m,
 #'   mu.iota.s ~ x1.iota.s,
@@ -674,7 +674,7 @@ eforensics_main_par   <- function(formula1, formula2, formula3, formula4, formul
     Xa      = mat$X
     weighta = mat$w
 
-    ## incremental fraud manufactures (mu.iota.m)
+    ## incremental fraud manufactured (mu.iota.m)
     mat      = getRegMatrix(func.call, data, weights, formula_number=3)
     X.iota.m = mat$X
     weighta  = mat$w
@@ -682,11 +682,11 @@ eforensics_main_par   <- function(formula1, formula2, formula3, formula4, formul
     mat      = getRegMatrix(func.call, data, weights, formula_number=4)
     X.iota.s = mat$X
     weighta  = mat$w
-    ## incremental fraud manufactures (mu.chi.m)
+    ## extreme fraud manufactured (mu.chi.m)
     mat      = getRegMatrix(func.call, data, weights, formula_number=5)
     X.chi.m = mat$X
     weighta  = mat$w
-    ## incremental fraud stolen (mu.chi.s)
+    ## extreme fraud stolen (mu.chi.s)
     mat      = getRegMatrix(func.call, data, weights, formula_number=6)
     X.chi.s = mat$X
     weighta  = mat$w
@@ -811,7 +811,7 @@ eforensics_main_par   <- function(formula1, formula2, formula3, formula4, formul
       ## attr(samples, "terms")     = c(colnames(X.chi.m), colnames(X.chi.s), colnames(X.iota.m), colnames(X.iota.s), colnames(Xw), colnames(Xa), "No Fraud", "Incremental Fraud", "Extreme Fraud")
       attr(samples, "terms")     = c("No Fraud", "Incremental Fraud", "Extreme Fraud",
                                      colnames(Xw), colnames(Xa),
-                                     colnames(X.iota.m), colnames(X.chi.m),
+                                     colnames(X.iota.m), colnames(X.iota.s),
                                      colnames(X.chi.m),  colnames(X.chi.s)    )
     }
     if(model.name %in% c("qbl","bl")){

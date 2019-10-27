@@ -1,7 +1,7 @@
 Encoding: UTF-8
 Package: eforensics
 Title: Election Forensics: Positive Empirical Models of Election Fraud
-Version: 0.0.3
+Version: 0.0.4
 Authors@R: c(
  person("Diogo","Ferrari",email="diogoferrari@gmail.com",role="aut"),
  person("Kevin","McAlister",email="kamcal@umich.edu",role="aut"), 

@@ -792,6 +792,7 @@ eforensics_main_par   <- function(formula1, formula2, formula3, formula4, formul
       samples = get_Z(samples[[1]])
     }else{
       if(!is.null(parameters) & "Z" %in% parameters & model.name %in% c("qbl","bl")){
+        osamples <- samples
         samples = get_Z_qbl(samplez = samples[[1]])
         frauds = samples$frauds
         samples = samples$samples
@@ -801,6 +802,7 @@ eforensics_main_par   <- function(formula1, formula2, formula3, formula4, formul
     }
     class(samples) = "eforensics"
     
+    attr(samples, "samples") = osamples
     
     attr(samples, "formula.w") = formula1
     attr(samples, "formula.a") = formula2

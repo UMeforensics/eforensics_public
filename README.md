@@ -49,7 +49,7 @@ samples    = eforensics(
     mu.chi.s  ~ x1.chi.s + x2.chi.s ,
     mu.iota.m ~ x1.iota.m + x2.iota.m ,
     data=data,
-    elegible.voters="N",
+    eligible.voters="N",
     model=model, mcmc=mcmc, get.dic=0,
     parameters = "all")
 
